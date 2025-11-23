@@ -315,4 +315,58 @@
     })
 )
 
+;; Advanced feature: Comprehensive contract optimization report generator
+;; This function generates a detailed optimization report by analyzing all suggestions,
+;; gas usage patterns, and calculating potential savings across multiple dimensions
+(define-public (generate-comprehensive-optimization-report
+    (contract-id principal)
+    (original-gas uint)
+    (optimized-gas uint))
+    (let
+        (
+            (submission (unwrap! (map-get? contract-submissions { contract-id: contract-id }) err-not-found))
+            (counter (unwrap! (map-get? suggestion-counter { contract-id: contract-id }) err-not-found))
+            (payment-info (map-get? analysis-payments { contract-id: contract-id }))
+            (gas-saved (- original-gas optimized-gas))
+            (optimization-score (calculate-optimization-score original-gas optimized-gas))
+            (savings-percentage (/ (* gas-saved u100) original-gas))
+        )
+        ;; Verify caller is the contract owner
+        (asserts! (is-eq tx-sender (get owner submission)) err-unauthorized)
+        (asserts! (> original-gas optimized-gas) err-invalid-input)
+        
+        ;; Update contract submission with final optimization score
+        (map-set contract-submissions
+            { contract-id: contract-id }
+            (merge submission {
+                status: "completed",
+                optimization-score: optimization-score,
+                gas-estimate: optimized-gas
+            })
+        )
+        
+        ;; Update global statistics
+        (var-set total-gas-saved (+ (var-get total-gas-saved) gas-saved))
+        
+        ;; Update analyzer reputation if payment was made
+        (match payment-info
+            payment-data (update-analyzer-reputation (get analyzer payment-data) gas-saved)
+            true
+        )
+        
+        ;; Return comprehensive report
+        (ok {
+            contract-id: contract-id,
+            original-gas: original-gas,
+            optimized-gas: optimized-gas,
+            gas-saved: gas-saved,
+            savings-percentage: savings-percentage,
+            optimization-score: optimization-score,
+            total-suggestions: (get count counter),
+            analysis-complete: true,
+            report-generated-at: block-height
+        })
+    )
+)
+
 
